@@ -4,6 +4,8 @@ const fs = require('fs')
 const path = require('path')
 const http = require('http')
 
+process.on('SIGTERM', () => process.exit(0))
+
 const client = new Client({
   intents: [
     GatewayIntentBits.Guilds,
@@ -28,7 +30,6 @@ client.on(Events.MessageCreate, async (message) => {
   if (message.author.bot) return
   if (!message.mentions.has(client.user)) return
 
-  // Bloque si ce message est déjà en cours de traitement
   if (processing.has(message.id)) return
   processing.add(message.id)
 
