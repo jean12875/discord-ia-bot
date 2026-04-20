@@ -22,8 +22,22 @@ const conversations = new Map()
 const MAX_HISTORY = 10
 const MEMORY_EXPIRY = 30 * 60 * 1000
 
+const KEEPALIVE_CHANNEL_ID = '1495747495953961110'
+
 client.once(Events.ClientReady, (c) => {
   console.log(`✅ Bot connecté en tant que ${c.user.tag}`)
+
+  setInterval(async () => {
+    try {
+      const channel = await client.channels.fetch(KEEPALIVE_CHANNEL_ID)
+      if (channel) {
+        const msg = await channel.send('🟢')
+        setTimeout(() => msg.delete().catch(() => {}), 5000)
+      }
+    } catch (err) {
+      console.error('Keep-alive error:', err)
+    }
+  }, 3 * 60 * 1000)
 })
 
 client.on(Events.MessageCreate, async (message) => {
@@ -101,6 +115,7 @@ setInterval(() => {
   }
 }, 10 * 60 * 1000)
 
-http.createServer((req, res) => res.end('Bot en ligne')).listen(process.env.PORT || 3000)
+const PORT = process.env.PORT || 3000
+http.createServer((req, res) => res.end('Bot en ligne')).listen(PORT)
 
 client.login(process.env.DISCORD_TOKEN)
