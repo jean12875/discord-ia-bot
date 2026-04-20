@@ -2,6 +2,7 @@ const { Client, GatewayIntentBits, Events } = require('discord.js')
 const Groq = require('groq-sdk')
 const fs = require('fs')
 const path = require('path')
+const http = require('http')
 
 const client = new Client({
   intents: [
@@ -19,13 +20,9 @@ client.once(Events.ClientReady, (c) => {
 })
 
 client.on(Events.MessageCreate, async (message) => {
-  // Ignore les autres bots
   if (message.author.bot) return
-
-  // Répond seulement si le bot est mentionné
   if (!message.mentions.has(client.user)) return
 
-  // Enlève la mention du message pour garder juste la question
   const userMessage = message.content
     .replace(/<@!?[0-9]+>/g, '')
     .trim()
@@ -34,17 +31,14 @@ client.on(Events.MessageCreate, async (message) => {
     return message.reply('Oui ? Tu voulais me dire quelque chose ? 😊')
   }
 
-  // Indique que le bot est en train d'écrire
   await message.channel.sendTyping()
 
   try {
-    // Lecture du fichier instructions
     const instructions = fs.readFileSync(
       path.join(__dirname, 'instructions.txt'),
       'utf-8'
     )
 
-    // Appel à l'IA Groq
     const completion = await groq.chat.completions.create({
       model: 'llama-3.3-70b-versatile',
       messages: [
@@ -56,7 +50,6 @@ client.on(Events.MessageCreate, async (message) => {
 
     const reply = completion.choices[0].message.content
 
-    // Discord limite les messages à 2000 caractères
     if (reply.length > 1990) {
       const chunks = reply.match(/.{1,1990}/gs)
       for (const chunk of chunks) {
@@ -71,5 +64,8 @@ client.on(Events.MessageCreate, async (message) => {
     await message.reply('❌ Une erreur est survenue, réessaie dans quelques secondes.')
   }
 })
+
+// Faux serveur web pour satisfaire Render
+http.createServer((req, res) => res.end('Bot en ligne')).listen(process.env.PORT || 3000)
 
 client.login(process.env.DISCORD_TOKEN)
