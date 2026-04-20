@@ -15,13 +15,20 @@ const client = new Client({
 
 const groq = new Groq({ apiKey: process.env.GROQ_API_KEY })
 
+const cooldown = new Set()
+
 client.once(Events.ClientReady, (c) => {
   console.log(`✅ Bot connecté en tant que ${c.user.tag}`)
 })
 
-client.once(Events.MessageCreate, async (message) => {
+client.on(Events.MessageCreate, async (message) => {
   if (message.author.bot) return
   if (!message.mentions.has(client.user)) return
+
+  // Anti-doublon : ignore si déjà en train de traiter ce message
+  if (cooldown.has(message.id)) return
+  cooldown.add(message.id)
+  setTimeout(() => cooldown.delete(message.id), 5000)
 
   const userMessage = message.content
     .replace(/<@!?[0-9]+>/g, '')
@@ -65,7 +72,6 @@ client.once(Events.MessageCreate, async (message) => {
   }
 })
 
-// Serveur web pour Render
 http.createServer((req, res) => res.end('Bot en ligne')).listen(process.env.PORT || 3000)
 
 client.login(process.env.DISCORD_TOKEN)
