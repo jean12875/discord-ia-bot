@@ -19,7 +19,7 @@ client.once(Events.ClientReady, (c) => {
   console.log(`✅ Bot connecté en tant que ${c.user.tag}`)
 })
 
-client.on(Events.MessageCreate, async (message) => {
+client.once(Events.MessageCreate, async (message) => {
   if (message.author.bot) return
   if (!message.mentions.has(client.user)) return
 
@@ -65,7 +65,7 @@ client.on(Events.MessageCreate, async (message) => {
   }
 })
 
-// Faux serveur web pour satisfaire Render
+// Serveur web pour Render
 http.createServer((req, res) => res.end('Bot en ligne')).listen(process.env.PORT || 3000)
 
 client.login(process.env.DISCORD_TOKEN)
