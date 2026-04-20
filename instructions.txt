@@ -20,7 +20,7 @@ Le lien Revolut est envoyé directement dans le ticket lors du paiement.
 Pour les paiements en Robux, notre jeu officiel : https://www.roblox.com/fr/games/119523597803809/Heo-Payement
 
 --- DÉROULEMENT D'UN CONTRAT ---
-1. Le client ouvre un ticket dans <#1495708866099417158>
+1. Le client ouvre un ticket dans <#1495708866099417158>  
 2. Négociation du projet et du prix
 3. Le client paie 50% en avance
 4. Le développeur commence le travail
