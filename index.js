@@ -17,6 +17,11 @@ const groq = new Groq({ apiKey: process.env.GROQ_API_KEY })
 
 const cooldown = new Set()
 
+// Mémoire de conversation par utilisateur
+const conversations = new Map()
+const MAX_HISTORY = 10 // Garde les 10 derniers échanges
+const MEMORY_EXPIRY = 30 * 60 * 1000 // Efface après 30 min d'inactivité
+
 client.once(Events.ClientReady, (c) => {
   console.log(`✅ Bot connecté en tant que ${c.user.tag}`)
 })
@@ -25,7 +30,6 @@ client.on(Events.MessageCreate, async (message) => {
   if (message.author.bot) return
   if (!message.mentions.has(client.user)) return
 
-  // Anti-doublon : ignore si déjà en train de traiter ce message
   if (cooldown.has(message.id)) return
   cooldown.add(message.id)
   setTimeout(() => cooldown.delete(message.id), 5000)
@@ -46,16 +50,36 @@ client.on(Events.MessageCreate, async (message) => {
       'utf-8'
     )
 
+    // Récupère ou crée l'historique de cet utilisateur
+    const userId = message.author.id
+    if (!conversations.has(userId)) {
+      conversations.set(userId, { history: [], lastActivity: Date.now() })
+    }
+
+    const userConv = conversations.get(userId)
+    userConv.lastActivity = Date.now()
+
+    // Ajoute le message de l'utilisateur à l'historique
+    userConv.history.push({ role: 'user', content: userMessage })
+
+    // Garde seulement les MAX_HISTORY derniers messages
+    if (userConv.history.length > MAX_HISTORY * 2) {
+      userConv.history = userConv.history.slice(-MAX_HISTORY * 2)
+    }
+
     const completion = await groq.chat.completions.create({
       model: 'llama-3.3-70b-versatile',
       messages: [
         { role: 'system', content: instructions },
-        { role: 'user', content: userMessage }
+        ...userConv.history
       ],
       max_tokens: 1024,
     })
 
     const reply = completion.choices[0].message.content
+
+    // Ajoute la réponse du bot à l'historique
+    userConv.history.push({ role: 'assistant', content: reply })
 
     if (reply.length > 1990) {
       const chunks = reply.match(/.{1,1990}/gs)
@@ -71,6 +95,16 @@ client.on(Events.MessageCreate, async (message) => {
     await message.reply('❌ Une erreur est survenue, réessaie dans quelques secondes.')
   }
 })
+
+// Nettoie les conversations inactives toutes les 10 min
+setInterval(() => {
+  const now = Date.now()
+  for (const [userId, conv] of conversations.entries()) {
+    if (now - conv.lastActivity > MEMORY_EXPIRY) {
+      conversations.delete(userId)
+    }
+  }
+}, 10 * 60 * 1000)
 
 http.createServer((req, res) => res.end('Bot en ligne')).listen(process.env.PORT || 3000)
 
