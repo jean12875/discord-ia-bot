@@ -1,5 +1,5 @@
 const { Client, GatewayIntentBits, Events } = require('discord.js')
-const Groq = require('groq-sdk')
+const { GoogleGenerativeAI } = require('@google/generative-ai')
 const fs = require('fs')
 const path = require('path')
 const http = require('http')
@@ -15,7 +15,7 @@ const client = new Client({
   ]
 })
 
-const groq = new Groq({ apiKey: process.env.GROQ_API_KEY })
+const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY)
 
 const processing = new Set()
 const conversations = new Map()
@@ -71,23 +71,32 @@ client.on(Events.MessageCreate, async (message) => {
 
     const userConv = conversations.get(userId)
     userConv.lastActivity = Date.now()
+
+    // Historique au format Gemini
+    const geminiHistory = userConv.history.map(msg => ({
+      role: msg.role === 'assistant' ? 'model' : 'user',
+      parts: [{ text: msg.content }]
+    }))
+
+    const model = genAI.getGenerativeModel({
+      model: 'gemini-1.5-flash',
+      systemInstruction: instructions,
+    })
+
+    const chat = model.startChat({
+      history: geminiHistory,
+    })
+
+    const result = await chat.sendMessage(userMessage)
+    const reply = result.response.text()
+
+    // Sauvegarde dans l'historique
     userConv.history.push({ role: 'user', content: userMessage })
+    userConv.history.push({ role: 'assistant', content: reply })
 
     if (userConv.history.length > MAX_HISTORY * 2) {
       userConv.history = userConv.history.slice(-MAX_HISTORY * 2)
     }
-
-    const completion = await groq.chat.completions.create({
-      model: 'llama-3.3-70b-versatile',
-      messages: [
-        { role: 'system', content: instructions },
-        ...userConv.history
-      ],
-      max_tokens: 1024,
-    })
-
-    const reply = completion.choices[0].message.content
-    userConv.history.push({ role: 'assistant', content: reply })
 
     if (reply.length > 1990) {
       const chunks = reply.match(/.{1,1990}/gs)
